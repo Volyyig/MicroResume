@@ -9,6 +9,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 const store = useResumeStore()
 const activeTab = ref<'content' | 'style'>('content')
 const isPolishing = ref(false)
+const polishingStatus = ref('')
 const previewScale = ref(1)
 const previewContainer = ref<HTMLElement | null>(null)
 
@@ -37,19 +38,31 @@ const handleAIImprove = async () => {
   if (isPolishing.value) return
 
   isPolishing.value = true
+  polishingStatus.value = 'Preparing...'
   try {
+    const listSections = store.resume.sections.filter(s => s.type === 'list')
+    let totalItems = 0
+    listSections.forEach(s => totalItems += s.content.length)
+
+    let currentItem = 0
+
     for (const section of store.resume.sections) {
       if (section.type === 'list') {
         for (const item of section.content) {
           if (item.description && item.description.length > 5) {
+            currentItem++
+            polishingStatus.value = `Polishing ${section.title} (${currentItem}/${totalItems})...`
             const improved = await improveResumeContent(item.description)
             item.description = improved
           }
         }
       }
     }
+    polishingStatus.value = 'Success!'
+    setTimeout(() => { polishingStatus.value = '' }, 3000)
   } catch (error: any) {
     alert(error.message || 'AI polishing failed.')
+    polishingStatus.value = ''
   } finally {
     isPolishing.value = false
   }
@@ -67,7 +80,7 @@ const handleAIImprove = async () => {
         <div class="actions">
           <button @click="handleAIImprove" class="btn-secondary ai-btn" :disabled="isPolishing">
             <component :is="isPolishing ? Loader2 : Sparkles" :size="18" :class="{ 'spin': isPolishing }" />
-            {{ isPolishing ? 'Polishing...' : 'AI Polish' }}
+            {{ isPolishing ? polishingStatus : 'AI Polish' }}
           </button>
           <button @click="handleExport" class="btn-primary export-btn">
             <Download :size="18" /> Export PDF

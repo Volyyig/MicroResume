@@ -1,28 +1,25 @@
 import { GoogleGenAI } from '@google/genai'
 
-// The client gets the API key from the environment variable `GEMINI_API_KEY`.
-// Note: In Vite, we map our VITE_GEMINI_API_KEY to the expected name or pass it explicitly.
+// Vite uses VITE_ prefix for env vars
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
+
+// The SDK can take an apiKey in the constructor if not set in environment
 const ai = new GoogleGenAI({ apiKey: API_KEY })
 
 export const improveResumeContent = async (text: string): Promise<string> => {
     if (!API_KEY) {
-        throw new Error('Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your .env file.')
+        throw new Error('API Key missing. Please set VITE_GEMINI_API_KEY in your .env file.')
     }
 
     try {
         const response = await ai.models.generateContent({
-            model: 'gemini-1.5-flash', // Keeping 1.5-flash as default stable, user can switch to gemini-2-flash-preview or similar if needed
-            contents: `
-                You are a professional resume writer. 
-                Improve this resume bullet point to be more impactful and professional: 
-                "${text}"
-            `,
+            model: 'gemini-1.5-flash',
+            contents: `As a professional resume expert, improve this bullet point to be more impactful and result-oriented: "${text}"`
         })
 
         return response.text?.trim() || ''
     } catch (error: any) {
         console.error('Gemini API Error:', error)
-        throw new Error('Failed to polish content with AI: ' + (error.message || 'Unknown error'))
+        throw new Error(`AI Error: ${error.message || 'Check your API Key and network.'}`)
     }
 }
