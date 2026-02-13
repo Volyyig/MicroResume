@@ -63,7 +63,7 @@ body {
 }
 
 .glass-card:hover {
-  transform: translateY(-4px);
+  /* transform: translateY(-4px); */
   border-color: var(--accent-color);
 }
 

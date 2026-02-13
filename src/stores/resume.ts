@@ -4,7 +4,8 @@ import { ref, watch } from 'vue'
 export interface Section {
     id: string
     title: string
-    content: string | any[]
+    type: 'list' | 'tags' | 'text'
+    content: any[]
 }
 
 export interface ResumeData {
@@ -32,6 +33,7 @@ const DEFAULT_RESUME: ResumeData = {
         {
             id: 'experience',
             title: 'Experience',
+            type: 'list',
             content: [
                 {
                     id: 'exp1',
@@ -45,6 +47,7 @@ const DEFAULT_RESUME: ResumeData = {
         {
             id: 'education',
             title: 'Education',
+            type: 'list',
             content: [
                 {
                     id: 'edu1',
@@ -58,6 +61,7 @@ const DEFAULT_RESUME: ResumeData = {
         {
             id: 'skills',
             title: 'Skills',
+            type: 'tags',
             content: ['Vue.ts', 'TypeScript', 'Node.js', 'AI Integration']
         }
     ]
@@ -80,30 +84,53 @@ export const useResumeStore = defineStore('resume', () => {
         resume.value.header = { ...resume.value.header, ...data }
     }
 
-    const updateSection = (sectionId: string, content: any) => {
+    const addSection = () => {
+        resume.value.sections.push({
+            id: Date.now().toString(),
+            title: 'New Section',
+            type: 'list',
+            content: []
+        })
+    }
+
+    const removeSection = (sectionId: string) => {
+        resume.value.sections = resume.value.sections.filter(s => s.id !== sectionId)
+    }
+
+    const addItem = (sectionId: string) => {
         const section = resume.value.sections.find(s => s.id === sectionId)
-        if (section) {
-            section.content = content
+        if (!section) return
+
+        if (section.type === 'list') {
+            section.content.push({
+                id: Date.now().toString(),
+                company: 'New Item',
+                role: 'Description',
+                period: 'Period',
+                description: 'Details go here...'
+            })
+        } else if (section.type === 'tags') {
+            section.content.push('New Skill')
         }
     }
 
-    const addExperience = () => {
-        const expSection = resume.value.sections.find(s => s.id === 'experience')
-        if (expSection && Array.isArray(expSection.content)) {
-            expSection.content.push({
-                id: Date.now().toString(),
-                company: 'New Company',
-                role: 'Role Name',
-                period: 'Period',
-                description: 'Description of your achievements.'
-            })
+    const removeItem = (sectionId: string, itemId: string | number) => {
+        const section = resume.value.sections.find(s => s.id === sectionId)
+        if (!section) return
+
+        if (section.type === 'list') {
+            section.content = section.content.filter((item: any) => item.id !== itemId)
+        } else if (section.type === 'tags') {
+            section.content.splice(itemId as number, 1)
         }
     }
 
     return {
         resume,
         updateHeader,
-        updateSection,
-        addExperience
+        addSection,
+        removeSection,
+        addItem,
+        removeItem
     }
 })

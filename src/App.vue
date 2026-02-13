@@ -95,18 +95,42 @@ const handleAIImprove = async () => {
             <input v-model="store.resume.header.location" placeholder="Location" class="glass-input" />
           </section>
 
-          <section class="form-group">
+          <section v-for="section in store.resume.sections" :key="section.id" class="form-group">
             <div class="section-header">
-              <h3>Experience</h3>
-              <button @click="store.addExperience" class="btn-icon">+</button>
+              <input v-model="section.title" placeholder="Section Title" class="section-title-input" />
+              <div class="header-actions">
+                <button @click="store.addItem(section.id)" class="btn-icon" title="Add Item">+</button>
+                <button @click="store.removeSection(section.id)" class="btn-icon-danger"
+                  title="Remove Section">×</button>
+              </div>
             </div>
-            <div v-for="exp in (store.resume.sections.find((s: Section) => s.id === 'experience')?.content as any[])"
-              :key="exp.id" class="exp-item glass">
-              <input v-model="exp.company" placeholder="Company" class="glass-input" />
-              <input v-model="exp.role" placeholder="Role" class="glass-input" />
-              <textarea v-model="exp.description" placeholder="Description" class="glass-input"></textarea>
+
+            <div v-if="section.type === 'list'" class="list-editor">
+              <div v-for="item in section.content" :key="item.id" class="exp-item glass">
+                <div class="item-header-editor">
+                  <input v-model="item.company" placeholder="Company/Organization" class="glass-input" />
+                  <button @click="store.removeItem(section.id, item.id)" class="btn-remove">×</button>
+                </div>
+                <input v-model="item.role" placeholder="Role/Degree" class="glass-input" />
+                <input v-model="item.period" placeholder="Period (e.g., 2021 - Present)" class="glass-input" />
+                <textarea v-model="item.description" placeholder="Description/Achievements"
+                  class="glass-input"></textarea>
+              </div>
+            </div>
+
+            <div v-else-if="section.type === 'tags'" class="tags-editor">
+              <div class="tags-container">
+                <div v-for="(_tag, idx) in section.content" :key="idx" class="tag-input-wrapper">
+                  <input v-model="section.content[idx]" class="glass-input tag-input" />
+                  <button @click="store.removeItem(section.id, idx)" class="btn-remove-tag">×</button>
+                </div>
+              </div>
             </div>
           </section>
+
+          <button @click="store.addSection" class="btn-secondary add-section-btn">
+            + Add New Section
+          </button>
         </div>
       </div>
 
@@ -134,20 +158,20 @@ const handleAIImprove = async () => {
               <h2 class="section-title">{{ section.title }}</h2>
               <div class="section-divider"></div>
 
-              <div v-if="section.id === 'experience'" class="experience-list">
-                <div v-for="exp in section.content" :key="exp.id" class="resume-item">
+              <div v-if="section.type === 'list'" class="experience-list">
+                <div v-for="item in section.content" :key="item.id" class="resume-item">
                   <div class="item-header">
-                    <strong>{{ exp.company }}</strong>
-                    <span>{{ exp.period }}</span>
+                    <strong>{{ item.company }}</strong>
+                    <span>{{ item.period }}</span>
                   </div>
-                  <div class="item-sub"><em>{{ exp.role }}</em></div>
-                  <p class="item-desc">{{ exp.description }}</p>
+                  <div class="item-sub"><em>{{ item.role }}</em></div>
+                  <p class="item-desc">{{ item.description }}</p>
                 </div>
               </div>
 
-              <div v-else-if="section.id === 'skills'" class="skills-line">
-                <span v-for="(skill, idx) in section.content" :key="idx" class="skill-tag">
-                  {{ skill }}{{ idx < section.content.length - 1 ? ',' : '' }} </span>
+              <div v-else-if="section.type === 'tags'" class="skills-line">
+                <span v-for="(tag, idx) in section.content" :key="idx" class="skill-tag">
+                  {{ tag }}{{ idx < section.content.length - 1 ? ',' : '' }} </span>
               </div>
             </div>
           </div>
@@ -284,6 +308,105 @@ const handleAIImprove = async () => {
   padding: var(--spacing-md);
   border-radius: var(--radius-md);
   margin-bottom: var(--spacing-md);
+  position: relative;
+}
+
+.item-header-editor {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: #ff4d4d;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 5px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.btn-remove:hover {
+  opacity: 1;
+}
+
+.section-title-input {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--accent-color);
+  color: var(--accent-color);
+  font-size: 1.1rem;
+  font-weight: bold;
+  padding: 5px 0;
+  width: 60%;
+}
+
+.section-title-input:focus {
+  outline: none;
+  border-bottom-color: white;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-icon-danger {
+  background: rgba(255, 77, 77, 0.1);
+  border: 1px solid rgba(255, 77, 77, 0.3);
+  color: #ff4d4d;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-icon-danger:hover {
+  background: rgba(255, 77, 77, 0.2);
+}
+
+.add-section-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 15px;
+  border-style: dashed;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tag-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  border: 1px solid var(--glass-border);
+}
+
+.tag-input {
+  border: none !important;
+  background: transparent !important;
+  margin-bottom: 0 !important;
+  padding: 5px !important;
+  width: 100px !important;
+  box-shadow: none !important;
+}
+
+.btn-remove-tag {
+  background: none;
+  border: none;
+  color: #ff4d4d;
+  cursor: pointer;
+  padding: 0 4px;
 }
 
 /* Resume Preview Styles */
