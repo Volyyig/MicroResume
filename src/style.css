@@ -144,6 +144,6 @@ h3 {
 }
 
 .btn-secondary:hover {
-  background: var(--glass-bg);
+  /* background: var(--glass-bg); */
   border-color: var(--accent-color);
 }

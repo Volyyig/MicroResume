@@ -18,6 +18,12 @@ export interface ResumeData {
         website: string
     }
     sections: Section[]
+    styles: {
+        fontSize: number
+        lineHeight: number
+        pageMargin: number
+        sectionSpacing: number
+    }
 }
 
 const DEFAULT_RESUME: ResumeData = {
@@ -28,6 +34,12 @@ const DEFAULT_RESUME: ResumeData = {
         phone: '+1 234 567 890',
         location: 'San Francisco, CA',
         website: 'linkedin.com/in/yourname'
+    },
+    styles: {
+        fontSize: 14,
+        lineHeight: 1.5,
+        pageMargin: 20,
+        sectionSpacing: 25
     },
     sections: [
         {
@@ -68,9 +80,18 @@ const DEFAULT_RESUME: ResumeData = {
 }
 
 export const useResumeStore = defineStore('resume', () => {
-    const resume = ref<ResumeData>(
-        JSON.parse(localStorage.getItem('micro-resume-data') || JSON.stringify(DEFAULT_RESUME))
-    )
+    const savedData = localStorage.getItem('micro-resume-data')
+    const initialData: ResumeData = savedData
+        ? JSON.parse(savedData)
+        : DEFAULT_RESUME
+
+    // Migration: Ensure new fields (like styles) exist even for old saved data
+    const resume = ref<ResumeData>({
+        ...DEFAULT_RESUME,
+        ...initialData,
+        header: { ...DEFAULT_RESUME.header, ...initialData.header },
+        styles: { ...DEFAULT_RESUME.styles, ...initialData.styles }
+    })
 
     watch(
         resume,

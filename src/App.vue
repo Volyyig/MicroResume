@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useResumeStore, type Section } from './stores/resume'
+import { useResumeStore } from './stores/resume'
 import { Sparkles, Download, Layout, Type, Loader2 } from 'lucide-vue-next'
 import { exportToPDF } from './utils/export'
 import { improveResumeContent } from './services/ai'
@@ -7,6 +7,7 @@ import { improveResumeContent } from './services/ai'
 import { ref, onMounted, onUnmounted } from 'vue'
 
 const store = useResumeStore()
+const activeTab = ref<'content' | 'style'>('content')
 const isPolishing = ref(false)
 const previewScale = ref(1)
 const previewContainer = ref<HTMLElement | null>(null)
@@ -35,15 +36,16 @@ const handleExport = async () => {
 const handleAIImprove = async () => {
   if (isPolishing.value) return
 
-  const expSection = store.resume.sections.find((s: Section) => s.id === 'experience')
-  if (!expSection || !Array.isArray(expSection.content)) return
-
   isPolishing.value = true
   try {
-    for (const exp of expSection.content) {
-      if (exp.description && exp.description.length > 10) {
-        const improved = await improveResumeContent(exp.description)
-        exp.description = improved
+    for (const section of store.resume.sections) {
+      if (section.type === 'list') {
+        for (const item of section.content) {
+          if (item.description && item.description.length > 5) {
+            const improved = await improveResumeContent(item.description)
+            item.description = improved
+          }
+        }
       }
     }
   } catch (error: any) {
@@ -77,60 +79,91 @@ const handleAIImprove = async () => {
     <main class="main-content">
       <div class="editor-pane glass-card">
         <div class="pane-header">
-          <h2 class="text-gradient">
-            <Type :size="20" /> Editor
-          </h2>
-          <p class="subtitle">Personalize your details</p>
+          <div class="header-main">
+            <h2 class="text-gradient">
+              <Type :size="20" /> Editor
+            </h2>
+            <div class="tab-selectors">
+              <button @click="activeTab = 'content'" :class="{ active: activeTab === 'content' }">Content</button>
+              <button @click="activeTab = 'style'" :class="{ active: activeTab === 'style' }">Style</button>
+            </div>
+          </div>
+          <p class="subtitle">{{ activeTab === 'content' ? 'Personalize your details' : 'Adjust the layout' }}</p>
         </div>
 
-        <div class="editor-fields">
-          <section class="form-group">
-            <h3>Contact Info</h3>
-            <input v-model="store.resume.header.fullName" placeholder="Full Name" class="glass-input" />
-            <input v-model="store.resume.header.title" placeholder="Job Title" class="glass-input" />
-            <div class="input-grid">
-              <input v-model="store.resume.header.email" placeholder="Email" class="glass-input" />
-              <input v-model="store.resume.header.phone" placeholder="Phone" class="glass-input" />
+        <div class="editor-fields scroll-on-hover">
+          <div v-if="activeTab === 'style'" class="style-editor animate-fade-in">
+            <div class="style-group">
+              <label>Font Size ({{ store.resume.styles.fontSize }}px)</label>
+              <input type="range" v-model.number="store.resume.styles.fontSize" min="10" max="20" step="1"
+                class="glass-slider" />
             </div>
-            <input v-model="store.resume.header.location" placeholder="Location" class="glass-input" />
-          </section>
+            <div class="style-group">
+              <label>Line Height ({{ store.resume.styles.lineHeight }})</label>
+              <input type="range" v-model.number="store.resume.styles.lineHeight" min="1" max="2" step="0.1"
+                class="glass-slider" />
+            </div>
+            <div class="style-group">
+              <label>Page Margin ({{ store.resume.styles.pageMargin }}mm)</label>
+              <input type="range" v-model.number="store.resume.styles.pageMargin" min="10" max="40" step="1"
+                class="glass-slider" />
+            </div>
+            <div class="style-group">
+              <label>Section Spacing ({{ store.resume.styles.sectionSpacing }}px)</label>
+              <input type="range" v-model.number="store.resume.styles.sectionSpacing" min="10" max="50" step="1"
+                class="glass-slider" />
+            </div>
+          </div>
 
-          <section v-for="section in store.resume.sections" :key="section.id" class="form-group">
-            <div class="section-header">
-              <input v-model="section.title" placeholder="Section Title" class="section-title-input" />
-              <div class="header-actions">
-                <button @click="store.addItem(section.id)" class="btn-icon" title="Add Item">+</button>
-                <button @click="store.removeSection(section.id)" class="btn-icon-danger"
-                  title="Remove Section">×</button>
+          <div v-else class="content-editor animate-fade-in">
+            <section class="form-group">
+              <h3>Contact Info</h3>
+              <input v-model="store.resume.header.fullName" placeholder="Full Name" class="glass-input" />
+              <input v-model="store.resume.header.title" placeholder="Job Title" class="glass-input" />
+              <div class="input-grid">
+                <input v-model="store.resume.header.email" placeholder="Email" class="glass-input" />
+                <input v-model="store.resume.header.phone" placeholder="Phone" class="glass-input" />
               </div>
-            </div>
+              <input v-model="store.resume.header.location" placeholder="Location" class="glass-input" />
+            </section>
 
-            <div v-if="section.type === 'list'" class="list-editor">
-              <div v-for="item in section.content" :key="item.id" class="exp-item glass">
-                <div class="item-header-editor">
-                  <input v-model="item.company" placeholder="Company/Organization" class="glass-input" />
-                  <button @click="store.removeItem(section.id, item.id)" class="btn-remove">×</button>
+            <section v-for="section in store.resume.sections" :key="section.id" class="form-group">
+              <div class="section-header">
+                <input v-model="section.title" placeholder="Section Title" class="section-title-input" />
+                <div class="header-actions">
+                  <button @click="store.addItem(section.id)" class="btn-icon" title="Add Item">+</button>
+                  <button @click="store.removeSection(section.id)" class="btn-icon-danger"
+                    title="Remove Section">×</button>
                 </div>
-                <input v-model="item.role" placeholder="Role/Degree" class="glass-input" />
-                <input v-model="item.period" placeholder="Period (e.g., 2021 - Present)" class="glass-input" />
-                <textarea v-model="item.description" placeholder="Description/Achievements"
-                  class="glass-input"></textarea>
               </div>
-            </div>
 
-            <div v-else-if="section.type === 'tags'" class="tags-editor">
-              <div class="tags-container">
-                <div v-for="(_tag, idx) in section.content" :key="idx" class="tag-input-wrapper">
-                  <input v-model="section.content[idx]" class="glass-input tag-input" />
-                  <button @click="store.removeItem(section.id, idx)" class="btn-remove-tag">×</button>
+              <div v-if="section.type === 'list'" class="list-editor">
+                <div v-for="item in section.content" :key="item.id" class="exp-item glass">
+                  <div class="item-header-editor">
+                    <input v-model="item.company" placeholder="Company/Organization" class="glass-input" />
+                    <button @click="store.removeItem(section.id, item.id)" class="btn-remove">×</button>
+                  </div>
+                  <input v-model="item.role" placeholder="Role/Degree" class="glass-input" />
+                  <input v-model="item.period" placeholder="Period (e.g., 2021 - Present)" class="glass-input" />
+                  <textarea v-model="item.description" placeholder="Description/Achievements"
+                    class="glass-input"></textarea>
                 </div>
               </div>
-            </div>
-          </section>
 
-          <button @click="store.addSection" class="btn-secondary add-section-btn">
-            + Add New Section
-          </button>
+              <div v-else-if="section.type === 'tags'" class="tags-editor">
+                <div class="tags-container">
+                  <div v-for="(_tag, idx) in section.content" :key="idx" class="tag-input-wrapper">
+                    <input v-model="section.content[idx]" class="glass-input tag-input" />
+                    <button @click="store.removeItem(section.id, idx)" class="btn-remove-tag">×</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <button @click="store.addSection" class="btn-secondary add-section-btn">
+              + Add New Section
+            </button>
+          </div>
         </div>
       </div>
 
@@ -143,7 +176,12 @@ const handleAIImprove = async () => {
         </div>
 
         <div class="preview-scroll-container" ref="previewContainer">
-          <div class="resume-paper" id="resume-preview" :style="{ transform: `scale(${previewScale})` }">
+          <div class="resume-paper" id="resume-preview" :style="{
+            transform: `scale(${previewScale})`,
+            fontSize: `${store.resume.styles.fontSize}px`,
+            lineHeight: store.resume.styles.lineHeight,
+            padding: `${store.resume.styles.pageMargin}mm`
+          }">
             <div class="resume-header">
               <h1>{{ store.resume.header.fullName }}</h1>
               <p class="resume-title">{{ store.resume.header.title }}</p>
@@ -154,7 +192,8 @@ const handleAIImprove = async () => {
               </div>
             </div>
 
-            <div v-for="section in store.resume.sections" :key="section.id" class="resume-section">
+            <div v-for="section in store.resume.sections" :key="section.id" class="resume-section"
+              :style="{ marginBottom: `${store.resume.styles.sectionSpacing}px` }">
               <h2 class="section-title">{{ section.title }}</h2>
               <div class="section-divider"></div>
 
@@ -240,6 +279,81 @@ const handleAIImprove = async () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tab-selectors {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  gap: 4px;
+}
+
+.tab-selectors button {
+  background: transparent;
+  border: none;
+  color: #ccc;
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.tab-selectors button.active {
+  background: var(--accent-color);
+  color: white;
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+.style-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-md) 0;
+}
+
+.style-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.style-group label {
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.glass-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  outline: none;
+}
+
+.glass-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 10px var(--accent-glow);
+  transition: transform 0.2s;
+}
+
+.glass-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
 }
 
 .editor-fields {

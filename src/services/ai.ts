@@ -1,32 +1,28 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
+// The client gets the API key from the environment variable `GEMINI_API_KEY`.
+// Note: In Vite, we map our VITE_GEMINI_API_KEY to the expected name or pass it explicitly.
 const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || ''
-const genAI = new GoogleGenerativeAI(API_KEY)
+const ai = new GoogleGenAI({ apiKey: API_KEY })
 
 export const improveResumeContent = async (text: string): Promise<string> => {
     if (!API_KEY) {
         throw new Error('Gemini API Key is missing. Please add VITE_GEMINI_API_KEY to your .env file.')
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
-    const prompt = `
-    You are a professional resume writer and career coach. 
-    Review the following bullet point or description from a resume and rewrite it to be more impactful, 
-    using strong action verbs and including metrics or results where possible. 
-    Keep it concise and professional.
-    
-    Original Content: "${text}"
-    
-    Improved Content:
-  `
-
     try {
-        const result = await model.generateContent(prompt)
-        const response = await result.response
-        return response.text().trim()
-    } catch (error) {
+        const response = await ai.models.generateContent({
+            model: 'gemini-1.5-flash', // Keeping 1.5-flash as default stable, user can switch to gemini-2-flash-preview or similar if needed
+            contents: `
+                You are a professional resume writer. 
+                Improve this resume bullet point to be more impactful and professional: 
+                "${text}"
+            `,
+        })
+
+        return response.text?.trim() || ''
+    } catch (error: any) {
         console.error('Gemini API Error:', error)
-        throw new Error('Failed to polish content with AI.')
+        throw new Error('Failed to polish content with AI: ' + (error.message || 'Unknown error'))
     }
 }
