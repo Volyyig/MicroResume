@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
+export type SectionType = 'professional' | 'text' | 'bullets' | 'tags'
+
 export interface Section {
     id: string
     title: string
-    type: 'list' | 'tags' | 'text'
-    content: any[]
+    type: SectionType
+    content: any // Can be string, string[], or object[]
 }
 
 export interface ResumeData {
@@ -24,6 +26,9 @@ export interface ResumeData {
         pageMargin: number
         sectionSpacing: number
     }
+    settings: {
+        aiProvider: 'gemini' | 'zhipu'
+    }
 }
 
 const DEFAULT_RESUME: ResumeData = {
@@ -41,11 +46,14 @@ const DEFAULT_RESUME: ResumeData = {
         pageMargin: 20,
         sectionSpacing: 25
     },
+    settings: {
+        aiProvider: 'gemini'
+    },
     sections: [
         {
             id: 'experience',
             title: 'Experience',
-            type: 'list',
+            type: 'professional',
             content: [
                 {
                     id: 'exp1',
@@ -59,7 +67,7 @@ const DEFAULT_RESUME: ResumeData = {
         {
             id: 'education',
             title: 'Education',
-            type: 'list',
+            type: 'professional',
             content: [
                 {
                     id: 'edu1',
@@ -74,7 +82,7 @@ const DEFAULT_RESUME: ResumeData = {
             id: 'skills',
             title: 'Skills',
             type: 'tags',
-            content: ['Vue.ts', 'TypeScript', 'Node.js', 'AI Integration']
+            content: ['Vue.js', 'TypeScript', 'Node.js', 'AI Integration']
         }
     ]
 }
@@ -85,12 +93,18 @@ export const useResumeStore = defineStore('resume', () => {
         ? JSON.parse(savedData)
         : DEFAULT_RESUME
 
-    // Migration: Ensure new fields (like styles) exist even for old saved data
+    // Migration logic
     const resume = ref<ResumeData>({
         ...DEFAULT_RESUME,
         ...initialData,
         header: { ...DEFAULT_RESUME.header, ...initialData.header },
-        styles: { ...DEFAULT_RESUME.styles, ...initialData.styles }
+        styles: { ...DEFAULT_RESUME.styles, ...initialData.styles },
+        settings: { ...DEFAULT_RESUME.settings, ...initialData.settings },
+        sections: (initialData.sections || DEFAULT_RESUME.sections).map(s => {
+            // Backward compatibility for old 'list' type
+            if ((s.type as string) === 'list') s.type = 'professional'
+            return s
+        })
     })
 
     watch(
@@ -105,12 +119,20 @@ export const useResumeStore = defineStore('resume', () => {
         resume.value.header = { ...resume.value.header, ...data }
     }
 
-    const addSection = () => {
+    const SECTION_TYPE_DEFAULTS: Record<SectionType, { title: string; content: any }> = {
+        professional: { title: 'Experience', content: [] },
+        bullets: { title: 'Highlights', content: [] },
+        text: { title: 'Summary', content: '' },
+        tags: { title: 'Skills', content: [] }
+    }
+
+    const addSection = (type: SectionType = 'professional') => {
+        const defaults = SECTION_TYPE_DEFAULTS[type]
         resume.value.sections.push({
             id: Date.now().toString(),
-            title: 'New Section',
-            type: 'list',
-            content: []
+            title: defaults.title,
+            type,
+            content: Array.isArray(defaults.content) ? [...defaults.content] : defaults.content
         })
     }
 
@@ -118,11 +140,51 @@ export const useResumeStore = defineStore('resume', () => {
         resume.value.sections = resume.value.sections.filter(s => s.id !== sectionId)
     }
 
+    const moveSection = (sectionId: string, direction: 'up' | 'down') => {
+        const idx = resume.value.sections.findIndex(s => s.id === sectionId)
+        if (idx === -1) return
+        const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+        if (targetIdx < 0 || targetIdx >= resume.value.sections.length) return
+        
+        const sections = resume.value.sections
+            ;[sections[idx], sections[targetIdx]] = [sections[targetIdx]!, sections[idx]!]
+    }
+
+    const duplicateSection = (sectionId: string) => {
+        const section = resume.value.sections.find(s => s.id === sectionId)
+        if (!section) return
+        const idx = resume.value.sections.findIndex(s => s.id === sectionId)
+        const clone: Section = {
+            ...JSON.parse(JSON.stringify(section)),
+            id: Date.now().toString(),
+            title: `${section.title} (Copy)`
+        }
+        resume.value.sections.splice(idx + 1, 0, clone)
+    }
+
+    const changeAIProvider = (provider: 'gemini' | 'zhipu') => {
+        resume.value.settings.aiProvider = provider
+    }
+
+    const changeSectionType = (sectionId: string, newType: SectionType) => {
+        const section = resume.value.sections.find(s => s.id === sectionId)
+        if (!section || section.type === newType) return
+
+        section.type = newType
+        if (newType === 'text') {
+            section.content = ''
+        } else if (newType === 'tags' || newType === 'bullets') {
+            section.content = []
+        } else if (newType === 'professional') {
+            section.content = []
+        }
+    }
+
     const addItem = (sectionId: string) => {
         const section = resume.value.sections.find(s => s.id === sectionId)
         if (!section) return
 
-        if (section.type === 'list') {
+        if (section.type === 'professional') {
             section.content.push({
                 id: Date.now().toString(),
                 company: 'New Item',
@@ -130,19 +192,19 @@ export const useResumeStore = defineStore('resume', () => {
                 period: 'Period',
                 description: 'Details go here...'
             })
-        } else if (section.type === 'tags') {
-            section.content.push('New Skill')
+        } else if (section.type === 'tags' || section.type === 'bullets') {
+            section.content.push(section.type === 'tags' ? 'New Tag' : 'New point...')
         }
     }
 
-    const removeItem = (sectionId: string, itemId: string | number) => {
+    const removeItem = (sectionId: string, indexOrId: string | number) => {
         const section = resume.value.sections.find(s => s.id === sectionId)
         if (!section) return
 
-        if (section.type === 'list') {
-            section.content = section.content.filter((item: any) => item.id !== itemId)
-        } else if (section.type === 'tags') {
-            section.content.splice(itemId as number, 1)
+        if (section.type === 'professional') {
+            section.content = section.content.filter((item: any) => item.id !== indexOrId)
+        } else if (Array.isArray(section.content)) {
+            section.content.splice(indexOrId as number, 1)
         }
     }
 
@@ -151,6 +213,10 @@ export const useResumeStore = defineStore('resume', () => {
         updateHeader,
         addSection,
         removeSection,
+        moveSection,
+        duplicateSection,
+        changeAIProvider,
+        changeSectionType,
         addItem,
         removeItem
     }
