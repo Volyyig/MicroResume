@@ -1,3 +1,4 @@
+import { PROMPTS } from './prompts'
 import type { AIService, AIImproveOptions } from './types'
 
 export class ZhipuService implements AIService {
@@ -20,7 +21,7 @@ export class ZhipuService implements AIService {
                     messages: [
                         {
                             role: 'user',
-                            content: `As a professional resume expert, improve this bullet point to be more impactful and result-oriented: "${options.text}"`
+                            content: PROMPTS.improveBulletPoint(options.text)
                         }
                     ],
                     temperature: 0.7

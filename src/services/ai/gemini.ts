@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai'
+import { PROMPTS } from './prompts'
 import type { AIService, AIImproveOptions } from './types'
 
 export class GeminiService implements AIService {
@@ -14,7 +15,7 @@ export class GeminiService implements AIService {
         try {
             const response = await genAI.models.generateContent({
                 model: 'gemini-1.5-flash',
-                contents: `As a professional resume expert, improve this bullet point to be more impactful and result-oriented: "${options.text}"`
+                contents: PROMPTS.improveBulletPoint(options.text)
             })
             return response.text?.trim() || ''
         } catch (error: any) {
