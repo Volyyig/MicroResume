@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useResumeStore, type SectionType } from '../stores/resume'
+import { computed, ref } from 'vue'
 import ProfessionalEditor from './ProfessionalEditor.vue'
 import BulletsEditor from './BulletsEditor.vue'
 import TextEditor from './TextEditor.vue'
@@ -13,7 +14,7 @@ const props = defineProps<{
     isLast: boolean
 }>()
 
-const getSection = () => store.resume.sections.find(s => s.id === props.sectionId)!
+const section = computed(() => store.resume.sections.find(s => s.id === props.sectionId)!)
 
 const TYPE_LABELS: Record<SectionType, string> = {
     professional: 'Professional',
@@ -22,8 +23,11 @@ const TYPE_LABELS: Record<SectionType, string> = {
     tags: 'Skills / Tags'
 }
 
-const onTypeChange = (e: Event) => {
-    store.changeSectionType(props.sectionId, (e.target as HTMLSelectElement).value as SectionType)
+const showAddMenu = ref(false)
+
+const addBlock = (type: SectionType) => {
+    store.addBlock(props.sectionId, type)
+    showAddMenu.value = false
 }
 </script>
 
@@ -32,35 +36,41 @@ const onTypeChange = (e: Event) => {
         <!-- Header bar -->
         <div class="card-header">
             <div class="header-left">
-                <input v-model="getSection().title" class="title-input" placeholder="Section Title" />
-                <select :value="getSection().type" @change="onTypeChange" class="input type-select">
-                    <option v-for="(label, key) in TYPE_LABELS" :key="key" :value="key">{{ label }}</option>
-                </select>
+                <input v-model="section.title" class="title-input" placeholder="Section Title" />
             </div>
             <div class="header-actions">
-                <!-- Move up -->
-                <button v-if="!isFirst" @click="store.moveSection(sectionId, 'up')" class="btn-icon" title="Move Up">
+                <!-- Move section up -->
+                <button v-if="!isFirst" @click="store.moveSection(sectionId, 'up')" class="btn-icon"
+                    title="Move Section Up">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="18 15 12 9 6 15" />
                     </svg>
                 </button>
-                <!-- Move down -->
-                <button v-if="!isLast" @click="store.moveSection(sectionId, 'down')" class="btn-icon" title="Move Down">
+                <!-- Move section down -->
+                <button v-if="!isLast" @click="store.moveSection(sectionId, 'down')" class="btn-icon"
+                    title="Move Section Down">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
                 </button>
-                <!-- Add item -->
-                <button v-if="getSection().type !== 'text'" @click="store.addItem(sectionId)" class="btn-icon btn-add"
-                    title="Add Item">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                </button>
+                <!-- Add Block Menu -->
+                <div class="add-block-container">
+                    <button @click="showAddMenu = !showAddMenu" class="btn-icon btn-add" title="Add Content Block">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                    </button>
+                    <div v-if="showAddMenu" class="add-menu">
+                        <button v-for="(label, key) in TYPE_LABELS" :key="key" @click="addBlock(key as SectionType)"
+                            class="menu-item">
+                            {{ label }}
+                        </button>
+                    </div>
+                </div>
                 <!-- Duplicate -->
                 <button @click="store.duplicateSection(sectionId)" class="btn-icon" title="Duplicate Section">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -80,12 +90,57 @@ const onTypeChange = (e: Event) => {
             </div>
         </div>
 
-        <!-- Content editor dispatched by type -->
+        <!-- Content blocks -->
         <div class="card-body">
-            <ProfessionalEditor v-if="getSection().type === 'professional'" :section-id="sectionId" />
-            <BulletsEditor v-else-if="getSection().type === 'bullets'" :section-id="sectionId" />
-            <TextEditor v-else-if="getSection().type === 'text'" :section-id="sectionId" />
-            <TagsEditor v-else-if="getSection().type === 'tags'" :section-id="sectionId" />
+            <div v-for="(block, bIdx) in section.blocks" :key="block.id" class="block-wrapper">
+                <div class="block-toolbar">
+                    <span class="block-type">{{ TYPE_LABELS[block.type] }}</span>
+                    <div class="block-actions">
+                        <!-- Add item to block -->
+                        <button v-if="block.type !== 'text'" @click="store.addItem(sectionId, block.id)"
+                            class="btn-block-action" title="Add Item">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                        </button>
+                        <!-- Move block up -->
+                        <button v-if="bIdx > 0" @click="store.moveBlock(sectionId, block.id, 'up')"
+                            class="btn-block-action" title="Move Block Up">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="18 15 12 9 6 15" />
+                            </svg>
+                        </button>
+                        <!-- Move block down -->
+                        <button v-if="bIdx < section.blocks.length - 1"
+                            @click="store.moveBlock(sectionId, block.id, 'down')" class="btn-block-action"
+                            title="Move Block Down">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </button>
+                        <!-- Remove block -->
+                        <button @click="store.removeBlock(sectionId, block.id)" class="btn-block-action btn-danger-text"
+                            title="Remove Block">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <ProfessionalEditor v-if="block.type === 'professional'" :section-id="sectionId" :block-id="block.id" />
+                <BulletsEditor v-else-if="block.type === 'bullets'" :section-id="sectionId" :block-id="block.id" />
+                <TextEditor v-else-if="block.type === 'text'" :section-id="sectionId" :block-id="block.id" />
+                <TagsEditor v-else-if="block.type === 'tags'" :section-id="sectionId" :block-id="block.id" />
+            </div>
+            <div v-if="section.blocks.length === 0" class="empty-section">
+                No content blocks yet. Click the + button to add one.
+            </div>
         </div>
     </section>
 </template>
@@ -95,7 +150,7 @@ const onTypeChange = (e: Event) => {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow: visible;
     transition: border-color var(--transition-fast);
 }
 
@@ -185,6 +240,110 @@ const onTypeChange = (e: Event) => {
 }
 
 .card-body {
-    padding: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md) var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.block-wrapper {
+    position: relative;
+    padding-top: var(--spacing-sm);
+    border-top: 1px dashed var(--color-border);
+}
+
+.block-wrapper:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+.block-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+.block-type {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.block-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.btn-block-action {
+    padding: 2px;
+    background: transparent;
+    border: none;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.btn-block-action:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text-secondary);
+}
+
+.btn-danger-text:hover {
+    color: var(--color-danger);
+}
+
+.add-block-container {
+    position: relative;
+}
+
+.add-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    z-index: 10;
+    min-width: 140px;
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.menu-item {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast);
+}
+
+.menu-item:hover {
+    background: var(--color-surface-hover);
+    color: var(--color-text-primary);
+}
+
+.empty-section {
+    padding: var(--spacing-lg);
+    text-align: center;
+    color: var(--color-text-tertiary);
+    font-size: 0.85rem;
+    font-style: italic;
+    background: var(--color-surface-hover);
+    border-radius: var(--radius-md);
+    border: 2px dashed var(--color-border);
 }
 </style>

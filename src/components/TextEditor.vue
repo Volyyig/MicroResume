@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { useResumeStore } from '../stores/resume'
+import { computed } from 'vue'
 
 const store = useResumeStore()
 
 const props = defineProps<{
     sectionId: string
+    blockId: string
 }>()
 
-const getSection = () => store.resume.sections.find(s => s.id === props.sectionId)!
+const block = computed(() => {
+    const section = store.resume.sections.find(s => s.id === props.sectionId)
+    return section?.blocks.find(b => b.id === props.blockId)
+})
 </script>
 
 <template>
-    <div class="text-editor">
-        <textarea v-model="getSection().content" placeholder="Type your content here..."
+    <div v-if="block" class="text-editor">
+        <textarea v-model="block.content" placeholder="Type your content here..."
             class="input text-area"></textarea>
     </div>
 </template>

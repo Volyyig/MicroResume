@@ -1,21 +1,26 @@
 <script setup lang="ts">
 import { useResumeStore } from '../stores/resume'
+import { computed } from 'vue'
 
 const store = useResumeStore()
 
 const props = defineProps<{
     sectionId: string
+    blockId: string
 }>()
 
-const getSection = () => store.resume.sections.find(s => s.id === props.sectionId)!
+const block = computed(() => {
+    const section = store.resume.sections.find(s => s.id === props.sectionId)
+    return section?.blocks.find(b => b.id === props.blockId)
+})
 </script>
 
 <template>
-    <div class="tags-editor">
+    <div v-if="block" class="tags-editor">
         <div class="tags-grid">
-            <div v-for="(_tag, idx) in getSection().content" :key="idx" class="tag-chip">
-                <input v-model="getSection().content[idx]" class="tag-input" />
-                <button @click="store.removeItem(sectionId, idx)" class="tag-remove" title="Remove">×</button>
+            <div v-for="(_tag, idx) in block.content" :key="idx" class="tag-chip">
+                <input v-model="block.content[idx]" class="tag-input" />
+                <button @click="store.removeItem(sectionId, blockId, idx)" class="tag-remove" title="Remove">×</button>
             </div>
         </div>
     </div>

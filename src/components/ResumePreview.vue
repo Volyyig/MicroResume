@@ -49,30 +49,32 @@ onUnmounted(() => {
                 <h2 class="section-title">{{ section.title }}</h2>
                 <div class="section-divider"></div>
 
-                <!-- Professional -->
-                <div v-if="section.type === 'professional'" class="experience-list">
-                    <div v-for="item in section.content" :key="item.id" class="resume-item">
-                        <div class="item-header">
-                            <strong>{{ item.company }}</strong>
-                            <span>{{ item.period }}</span>
+                <div v-for="block in section.blocks" :key="block.id" class="resume-block">
+                    <!-- Professional -->
+                    <div v-if="block.type === 'professional'" class="experience-list">
+                        <div v-for="item in block.content" :key="item.id" class="resume-item">
+                            <div class="item-header">
+                                <strong>{{ item.company }}</strong>
+                                <span>{{ item.period }}</span>
+                            </div>
+                            <div class="item-sub"><em>{{ item.role }}</em></div>
+                            <p v-if="item.description" class="item-desc">{{ item.description }}</p>
                         </div>
-                        <div class="item-sub"><em>{{ item.role }}</em></div>
-                        <p v-if="item.description" class="item-desc">{{ item.description }}</p>
                     </div>
-                </div>
 
-                <!-- Bullets -->
-                <ul v-else-if="section.type === 'bullets'" class="resume-bullets">
-                    <li v-for="(point, idx) in section.content" :key="idx">{{ point }}</li>
-                </ul>
+                    <!-- Bullets -->
+                    <ul v-else-if="block.type === 'bullets'" class="resume-bullets">
+                        <li v-for="(point, idx) in block.content" :key="idx">{{ point }}</li>
+                    </ul>
 
-                <!-- Text -->
-                <div v-else-if="section.type === 'text'" class="resume-text">{{ section.content }}</div>
+                    <!-- Text -->
+                    <div v-else-if="block.type === 'text'" class="resume-text">{{ block.content }}</div>
 
-                <!-- Tags -->
-                <div v-else-if="section.type === 'tags'" class="skills-line">
-                    <span v-for="(tag, idx) in (section.content as string[])" :key="idx">{{ tag }}{{ idx <
-                        (section.content as string[]).length - 1 ? ', ' : '' }}</span>
+                    <!-- Tags -->
+                    <div v-else-if="block.type === 'tags'" class="skills-line">
+                        <span v-for="(tag, idx) in (block.content as string[])" :key="idx">{{ tag }}{{ idx <
+                            (block.content as string[]).length - 1 ? ', ' : '' }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -197,5 +199,12 @@ onUnmounted(() => {
 .skills-line {
     font-size: 0.9rem;
     color: #444;
+}
+.resume-block {
+    margin-bottom: 8px;
+}
+
+.resume-block:last-child {
+    margin-bottom: 0;
 }
 </style>

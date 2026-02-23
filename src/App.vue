@@ -26,33 +26,36 @@ const handleAIImprove = async () => {
   isPolishing.value = true
   polishingStatus.value = 'Preparing...'
   try {
-    const listSections = store.resume.sections.filter(s => s.type === 'professional' || s.type === 'bullets')
     let totalItems = 0
-    listSections.forEach(s => {
-      if (Array.isArray(s.content)) {
-        totalItems += s.content.length
-      }
+    store.resume.sections.forEach(s => {
+      s.blocks.forEach(b => {
+        if (b.type === 'professional' || b.type === 'bullets') {
+          totalItems += b.content.length
+        }
+      })
     })
 
     let currentItem = 0
 
     for (const section of store.resume.sections) {
-      if (section.type === 'professional') {
-        for (const item of section.content) {
-          if (item.description && item.description.length > 5) {
-            currentItem++
-            polishingStatus.value = `Polishing ${section.title} (${currentItem}/${totalItems})...`
-            const improved = await improveResumeContent(item.description, store.resume.settings.aiProvider)
-            item.description = improved
+      for (const block of section.blocks) {
+        if (block.type === 'professional') {
+          for (const item of block.content) {
+            if (item.description && item.description.length > 5) {
+              currentItem++
+              polishingStatus.value = `Polishing ${section.title} (${currentItem}/${totalItems})...`
+              const improved = await improveResumeContent(item.description, store.resume.settings.aiProvider)
+              item.description = improved
+            }
           }
-        }
-      } else if (section.type === 'bullets') {
-        for (let i = 0; i < section.content.length; i++) {
-          if (section.content[i].length > 5) {
-            currentItem++
-            polishingStatus.value = `Polishing ${section.title} (${currentItem}/${totalItems})...`
-            const improved = await improveResumeContent(section.content[i], store.resume.settings.aiProvider)
-            section.content[i] = improved
+        } else if (block.type === 'bullets') {
+          for (let i = 0; i < block.content.length; i++) {
+            if (block.content[i].length > 5) {
+              currentItem++
+              polishingStatus.value = `Polishing ${section.title} (${currentItem}/${totalItems})...`
+              const improved = await improveResumeContent(block.content[i], store.resume.settings.aiProvider)
+              block.content[i] = improved
+            }
           }
         }
       }

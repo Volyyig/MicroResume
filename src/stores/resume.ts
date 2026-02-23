@@ -3,11 +3,16 @@ import { ref, watch } from 'vue'
 
 export type SectionType = 'professional' | 'text' | 'bullets' | 'tags'
 
+export interface Block {
+    id: string
+    type: SectionType
+    content: any // Can be string, string[], or object[]
+}
+
 export interface Section {
     id: string
     title: string
-    type: SectionType
-    content: any // Can be string, string[], or object[]
+    blocks: Block[]
 }
 
 export interface ResumeData {
@@ -53,58 +58,89 @@ const DEFAULT_RESUME: ResumeData = {
         {
             id: 'experience',
             title: 'Experience',
-            type: 'professional',
-            content: [
+            blocks: [
                 {
-                    id: 'exp1',
-                    company: 'Tech Corp',
-                    role: 'Senior Developer',
-                    period: '2021 - Present',
-                    description: 'Leading the frontend team to build high-performance applications.'
+                    id: 'exp-block-1',
+                    type: 'professional',
+                    content: [
+                        {
+                            id: 'exp1',
+                            company: 'Tech Corp',
+                            role: 'Senior Developer',
+                            period: '2021 - Present',
+                            description: 'Leading the frontend team to build high-performance applications.'
+                        }
+                    ]
                 }
             ]
         },
         {
             id: 'education',
             title: 'Education',
-            type: 'professional',
-            content: [
+            blocks: [
                 {
-                    id: 'edu1',
-                    school: 'University of Engineering',
-                    degree: 'B.S. in Computer Science',
-                    period: '2017 - 2021',
-                    description: 'Specialized in Distributed Systems.'
+                    id: 'edu-block-1',
+                    type: 'professional',
+                    content: [
+                        {
+                            id: 'edu1',
+                            school: 'University of Engineering',
+                            degree: 'B.S. in Computer Science',
+                            period: '2017 - 2021',
+                            description: 'Specialized in Distributed Systems.'
+                        }
+                    ]
                 }
             ]
         },
         {
             id: 'skills',
             title: 'Skills',
-            type: 'tags',
-            content: ['Vue.js', 'TypeScript', 'Node.js', 'AI Integration']
+            blocks: [
+                {
+                    id: 'skills-block-1',
+                    type: 'tags',
+                    content: ['Vue.js', 'TypeScript', 'Node.js', 'AI Integration']
+                }
+            ]
         }
     ]
 }
 
 export const useResumeStore = defineStore('resume', () => {
     const savedData = localStorage.getItem('micro-resume-data')
-    const initialData: ResumeData = savedData
+    const initialData: any = savedData
         ? JSON.parse(savedData)
         : DEFAULT_RESUME
 
     // Migration logic
+    const sections = (initialData.sections || DEFAULT_RESUME.sections).map((s: any) => {
+        // If it's old format (has type/content instead of blocks)
+        if (s.type && s.content !== undefined && !s.blocks) {
+            let type = s.type
+            if (type === 'list') type = 'professional'
+            return {
+                id: s.id,
+                title: s.title,
+                blocks: [
+                    {
+                        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                        type: type as SectionType,
+                        content: s.content
+                    }
+                ]
+            }
+        }
+        return s
+    })
+
     const resume = ref<ResumeData>({
         ...DEFAULT_RESUME,
         ...initialData,
         header: { ...DEFAULT_RESUME.header, ...initialData.header },
         styles: { ...DEFAULT_RESUME.styles, ...initialData.styles },
         settings: { ...DEFAULT_RESUME.settings, ...initialData.settings },
-        sections: (initialData.sections || DEFAULT_RESUME.sections).map(s => {
-            // Backward compatibility for old 'list' type
-            if ((s.type as string) === 'list') s.type = 'professional'
-            return s
-        })
+        sections
     })
 
     watch(
@@ -119,20 +155,11 @@ export const useResumeStore = defineStore('resume', () => {
         resume.value.header = { ...resume.value.header, ...data }
     }
 
-    const SECTION_TYPE_DEFAULTS: Record<SectionType, { title: string; content: any }> = {
-        professional: { title: 'Experience', content: [] },
-        bullets: { title: 'Highlights', content: [] },
-        text: { title: 'Summary', content: '' },
-        tags: { title: 'Skills', content: [] }
-    }
-
-    const addSection = (type: SectionType = 'professional') => {
-        const defaults = SECTION_TYPE_DEFAULTS[type]
+    const addSection = () => {
         resume.value.sections.push({
             id: Date.now().toString(),
-            title: defaults.title,
-            type,
-            content: Array.isArray(defaults.content) ? [...defaults.content] : defaults.content
+            title: 'New Section',
+            blocks: []
         })
     }
 
@@ -145,9 +172,9 @@ export const useResumeStore = defineStore('resume', () => {
         if (idx === -1) return
         const targetIdx = direction === 'up' ? idx - 1 : idx + 1
         if (targetIdx < 0 || targetIdx >= resume.value.sections.length) return
-        
-        const sections = resume.value.sections
-            ;[sections[idx], sections[targetIdx]] = [sections[targetIdx]!, sections[idx]!]
+
+        const sectionsArr = resume.value.sections
+            ;[sectionsArr[idx], sectionsArr[targetIdx]] = [sectionsArr[targetIdx]!, sectionsArr[idx]!]
     }
 
     const duplicateSection = (sectionId: string) => {
@@ -166,45 +193,70 @@ export const useResumeStore = defineStore('resume', () => {
         resume.value.settings.aiProvider = provider
     }
 
-    const changeSectionType = (sectionId: string, newType: SectionType) => {
-        const section = resume.value.sections.find(s => s.id === sectionId)
-        if (!section || section.type === newType) return
-
-        section.type = newType
-        if (newType === 'text') {
-            section.content = ''
-        } else if (newType === 'tags' || newType === 'bullets') {
-            section.content = []
-        } else if (newType === 'professional') {
-            section.content = []
-        }
+    const BLOCK_TYPE_DEFAULTS: Record<SectionType, any> = {
+        professional: [],
+        bullets: [],
+        text: '',
+        tags: []
     }
 
-    const addItem = (sectionId: string) => {
+    const addBlock = (sectionId: string, type: SectionType) => {
         const section = resume.value.sections.find(s => s.id === sectionId)
         if (!section) return
+        section.blocks.push({
+            id: Date.now().toString(),
+            type,
+            content: Array.isArray(BLOCK_TYPE_DEFAULTS[type]) ? [...BLOCK_TYPE_DEFAULTS[type]] : BLOCK_TYPE_DEFAULTS[type]
+        })
+    }
 
-        if (section.type === 'professional') {
-            section.content.push({
+    const removeBlock = (sectionId: string, blockId: string) => {
+        const section = resume.value.sections.find(s => s.id === sectionId)
+        if (!section) return
+        section.blocks = section.blocks.filter(b => b.id !== blockId)
+    }
+
+    const moveBlock = (sectionId: string, blockId: string, direction: 'up' | 'down') => {
+        const section = resume.value.sections.find(s => s.id === sectionId)
+        if (!section) return
+        const idx = section.blocks.findIndex(b => b.id === blockId)
+        if (idx === -1) return
+        const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+        if (targetIdx < 0 || targetIdx >= section.blocks.length) return
+
+        const blocksArr = section.blocks
+            ;[blocksArr[idx], blocksArr[targetIdx]] = [blocksArr[targetIdx]!, blocksArr[idx]!]
+    }
+
+    const addItem = (sectionId: string, blockId: string) => {
+        const section = resume.value.sections.find(s => s.id === sectionId)
+        if (!section) return
+        const block = section.blocks.find(b => b.id === blockId)
+        if (!block) return
+
+        if (block.type === 'professional') {
+            block.content.push({
                 id: Date.now().toString(),
                 company: 'New Item',
                 role: 'Description',
                 period: 'Period',
                 description: 'Details go here...'
             })
-        } else if (section.type === 'tags' || section.type === 'bullets') {
-            section.content.push(section.type === 'tags' ? 'New Tag' : 'New point...')
+        } else if (block.type === 'tags' || block.type === 'bullets') {
+            block.content.push(block.type === 'tags' ? 'New Tag' : 'New point...')
         }
     }
 
-    const removeItem = (sectionId: string, indexOrId: string | number) => {
+    const removeItem = (sectionId: string, blockId: string, indexOrId: string | number) => {
         const section = resume.value.sections.find(s => s.id === sectionId)
         if (!section) return
+        const block = section.blocks.find(b => b.id === blockId)
+        if (!block) return
 
-        if (section.type === 'professional') {
-            section.content = section.content.filter((item: any) => item.id !== indexOrId)
-        } else if (Array.isArray(section.content)) {
-            section.content.splice(indexOrId as number, 1)
+        if (block.type === 'professional') {
+            block.content = block.content.filter((item: any) => item.id !== indexOrId)
+        } else if (Array.isArray(block.content)) {
+            block.content.splice(indexOrId as number, 1)
         }
     }
 
@@ -216,8 +268,11 @@ export const useResumeStore = defineStore('resume', () => {
         moveSection,
         duplicateSection,
         changeAIProvider,
-        changeSectionType,
+        addBlock,
+        removeBlock,
+        moveBlock,
         addItem,
         removeItem
     }
 })
+

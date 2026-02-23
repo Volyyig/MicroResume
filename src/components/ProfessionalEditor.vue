@@ -1,21 +1,26 @@
 <script setup lang="ts">
 import { useResumeStore } from '../stores/resume'
+import { computed } from 'vue'
 
 const store = useResumeStore()
 
 const props = defineProps<{
     sectionId: string
+    blockId: string
 }>()
 
-const getSection = () => store.resume.sections.find(s => s.id === props.sectionId)!
+const block = computed(() => {
+    const section = store.resume.sections.find(s => s.id === props.sectionId)
+    return section?.blocks.find(b => b.id === props.blockId)
+})
 </script>
 
 <template>
-    <div class="pro-list">
-        <div v-for="item in getSection().content" :key="item.id" class="pro-item">
+    <div v-if="block" class="pro-list">
+        <div v-for="item in block.content" :key="item.id" class="pro-item">
             <div class="item-top-row">
                 <input v-model="item.company" placeholder="Company / Organization / School" class="input" />
-                <button @click="store.removeItem(sectionId, item.id)" class="btn-remove" title="Remove">
+                <button @click="store.removeItem(sectionId, blockId, item.id)" class="btn-remove" title="Remove">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         stroke-linecap="round" stroke-linejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18" />

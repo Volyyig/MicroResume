@@ -1,22 +1,27 @@
 <script setup lang="ts">
 import { useResumeStore } from '../stores/resume'
+import { computed } from 'vue'
 
 const store = useResumeStore()
 
 const props = defineProps<{
     sectionId: string
+    blockId: string
 }>()
 
-const getSection = () => store.resume.sections.find(s => s.id === props.sectionId)!
+const block = computed(() => {
+    const section = store.resume.sections.find(s => s.id === props.sectionId)
+    return section?.blocks.find(b => b.id === props.blockId)
+})
 </script>
 
 <template>
-    <div class="bullets-list">
-        <div v-for="(_point, idx) in getSection().content" :key="idx" class="bullet-row">
+    <div v-if="block" class="bullets-list">
+        <div v-for="(_point, idx) in block.content" :key="idx" class="bullet-row">
             <span class="bullet-marker">•</span>
-            <textarea v-model="getSection().content[idx]" placeholder="Achievement / Point..."
+            <textarea v-model="block.content[idx]" placeholder="Achievement / Point..."
                 class="input bullet-input"></textarea>
-            <button @click="store.removeItem(sectionId, idx)" class="btn-remove" title="Remove">
+            <button @click="store.removeItem(sectionId, blockId, idx)" class="btn-remove" title="Remove">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18" />
