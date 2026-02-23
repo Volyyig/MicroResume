@@ -83,7 +83,6 @@ onUnmounted(() => {
     display: flex;
     justify-content: center;
     background: var(--color-bg);
-    border-radius: var(--radius-md);
 }
 
 .resume-paper {

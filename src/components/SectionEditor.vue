@@ -4,6 +4,8 @@ import { computed, ref } from 'vue'
 import ThreeSectionEditor from './ThreeSectionEditor.vue'
 import ListEditor from './ListEditor.vue'
 import TextEditor from './TextEditor.vue'
+import { Sparkles, Loader2, Undo2, Redo2 } from 'lucide-vue-next'
+import { improveResumeContent } from '../services/ai'
 
 const store = useResumeStore()
 
@@ -23,10 +25,48 @@ const TYPE_LABELS: Record<SectionType, string> = {
 }
 
 const showAddMenu = ref(false)
+const isPolishing = ref(false)
+const polishIcon = ref('sparkles') // sparkles | check | loader
 
 const addBlock = (type: SectionType) => {
     store.addBlock(props.sectionId, type)
     showAddMenu.value = false
+}
+
+const handleAIPolish = async (block: any) => {
+    if (isPolishing.value) return
+    isPolishing.value = true
+
+    // Determine API Key
+    const provider = store.resume.settings.aiProvider
+    const apiKey = provider === 'gemini'
+        ? store.resume.settings.geminiKey
+        : store.resume.settings.zhipuKey
+
+    try {
+        store.recordHistory(block.id)
+
+        if (block.type === 'list-unordered' || block.type === 'list-ordered') {
+            for (let i = 0; i < block.content.length; i++) {
+                if (block.content[i].length > 5) {
+                    const improved = await improveResumeContent(block.content[i], provider, apiKey)
+                    block.content[i] = improved
+                }
+            }
+        } else if (block.type === 'text') {
+            if (block.content.length > 10) {
+                const improved = await improveResumeContent(block.content, provider, apiKey)
+                block.content = improved
+            }
+        }
+
+        polishIcon.value = 'check'
+        setTimeout(() => { polishIcon.value = 'sparkles' }, 3000)
+    } catch (error: any) {
+        alert(error.message || 'AI polishing failed.')
+    } finally {
+        isPolishing.value = false
+    }
 }
 </script>
 
@@ -95,6 +135,30 @@ const addBlock = (type: SectionType) => {
                 <div class="block-toolbar">
                     <span class="block-type">{{ TYPE_LABELS[block.type] }}</span>
                     <div class="block-actions">
+                        <!-- Undo/Redo (Block Level) -->
+                        <button @click="store.undo(block.id)" class="btn-block-action"
+                            :disabled="!store.canUndo(block.id)" title="Undo">
+                            <Undo2 :size="12" />
+                        </button>
+                        <button @click="store.redo(block.id)" class="btn-block-action"
+                            :disabled="!store.canRedo(block.id)" title="Redo">
+                            <Redo2 :size="12" />
+                        </button>
+
+                        <!-- AI Polish (Block Level) -->
+                        <button @click="handleAIPolish(block)" class="btn-block-action btn-ai" :disabled="isPolishing"
+                            title="AI Polish">
+                            <Loader2 v-if="isPolishing" :size="12" class="spin" />
+                            <svg v-else-if="polishIcon === 'check'" width="12" height="12" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            <Sparkles v-else :size="12" />
+                        </button>
+
+                        <div class="toolbar-divider"></div>
+
                         <!-- Add item to block -->
                         <button v-if="block.type !== 'text'" @click="store.addItem(sectionId, block.id)"
                             class="btn-block-action" title="Add Item">
@@ -237,6 +301,44 @@ const addBlock = (type: SectionType) => {
 .btn-danger:hover {
     background: var(--color-danger-bg);
     color: var(--color-danger);
+}
+
+.btn-ai {
+    width: auto !important;
+    padding: 0 8px !important;
+    gap: 6px;
+    color: var(--color-accent) !important;
+}
+
+.btn-ai:hover {
+    background: var(--color-accent-bg) !important;
+}
+
+.btn-text {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.divider {
+    width: 1px;
+    height: 20px;
+    background: var(--color-border);
+    margin: 0 4px;
+    align-self: center;
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .card-body {

@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { useResumeStore } from './stores/resume'
-import { Sparkles, Download, FileText, Loader2 } from 'lucide-vue-next'
+import { Download, FileText } from 'lucide-vue-next'
 import { exportToPDF } from './utils/export'
-import { improveResumeContent } from './services/ai'
 import { ref } from 'vue'
 
 import EditorHeader from './components/EditorHeader.vue'
@@ -13,61 +12,9 @@ import SectionToolbar from './components/SectionToolbar.vue'
 
 const store = useResumeStore()
 const activeTab = ref<'content' | 'style'>('content')
-const isPolishing = ref(false)
-const polishingStatus = ref('')
 
 const handleExport = async () => {
   await exportToPDF('resume-preview', `${store.resume.header.fullName.replace(/\s+/g, '_')}_Resume.pdf`)
-}
-
-const handleAIImprove = async () => {
-  if (isPolishing.value) return
-
-  isPolishing.value = true
-  polishingStatus.value = 'Preparing...'
-  try {
-    let totalItems = 0
-    store.resume.sections.forEach(s => {
-      s.blocks.forEach(b => {
-        if (b.type === 'list-unordered' || b.type === 'list-ordered') {
-          totalItems += b.content.length
-        } else if (b.type === 'text' && b.content.length > 20) {
-          totalItems += 1
-        }
-      })
-    })
-
-    let currentItem = 0
-
-    for (const section of store.resume.sections) {
-      for (const block of section.blocks) {
-        if (block.type === 'list-unordered' || block.type === 'list-ordered') {
-          for (let i = 0; i < block.content.length; i++) {
-            if (block.content[i].length > 5) {
-              currentItem++
-              polishingStatus.value = `Polishing ${section.title} (${currentItem}/${totalItems})...`
-              const improved = await improveResumeContent(block.content[i], store.resume.settings.aiProvider)
-              block.content[i] = improved
-            }
-          }
-        } else if (block.type === 'text') {
-          if (block.content.length > 20) {
-            currentItem++
-            polishingStatus.value = `Polishing ${section.title}...`
-            const improved = await improveResumeContent(block.content, store.resume.settings.aiProvider)
-            block.content = improved
-          }
-        }
-      }
-    }
-    polishingStatus.value = 'Done!'
-    setTimeout(() => { polishingStatus.value = '' }, 3000)
-  } catch (error: any) {
-    alert(error.message || 'AI polishing failed.')
-    polishingStatus.value = ''
-  } finally {
-    isPolishing.value = false
-  }
 }
 </script>
 
@@ -81,10 +28,6 @@ const handleAIImprove = async () => {
           <span class="brand-name">micro-resume</span>
         </div>
         <div class="topbar-actions">
-          <button @click="handleAIImprove" class="btn-secondary" :disabled="isPolishing">
-            <component :is="isPolishing ? Loader2 : Sparkles" :size="16" :class="{ spin: isPolishing }" />
-            {{ isPolishing ? polishingStatus : 'AI Polish' }}
-          </button>
           <button @click="handleExport" class="btn-primary">
             <Download :size="16" />
             Export PDF

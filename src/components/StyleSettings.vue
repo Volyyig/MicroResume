@@ -16,6 +16,18 @@ const store = useResumeStore()
             </div>
         </div>
 
+        <div class="setting-group">
+            <label class="setting-label">Gemini API Key</label>
+            <input type="password" v-model="store.resume.settings.geminiKey" class="text-input"
+                placeholder="Enter Gemini API Key" />
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">Zhipu AI API Key</label>
+            <input type="password" v-model="store.resume.settings.zhipuKey" class="text-input"
+                placeholder="Enter Zhipu API Key" />
+        </div>
+
         <div class="divider"></div>
 
         <div class="setting-group">
@@ -127,6 +139,22 @@ const store = useResumeStore()
     border-radius: 2px;
     outline: none;
     cursor: pointer;
+}
+
+.text-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color var(--transition-fast);
+}
+
+.text-input:focus {
+    border-color: var(--color-accent);
 }
 
 .range-input::-webkit-slider-thumb {

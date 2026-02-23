@@ -18,9 +18,12 @@ const block = computed(() => {
     <div v-if="block" class="three-section-editor">
         <div v-for="item in block.content" :key="item.id" class="item-row card">
             <div class="row-inputs">
-                <input v-model="item.left" placeholder="Left (e.g. School)" class="input-field" />
-                <input v-model="item.center" placeholder="Center (e.g. Major)" class="input-field" />
-                <input v-model="item.right" placeholder="Right (e.g. Date)" class="input-field" />
+                <input v-model="item.left" placeholder="Left (e.g. School)" class="input-field"
+                    @focus="store.recordHistory(block.id)" />
+                <input v-model="item.center" placeholder="Center (e.g. Major)" class="input-field"
+                    @focus="store.recordHistory(block.id)" />
+                <input v-model="item.right" placeholder="Right (e.g. Date)" class="input-field"
+                    @focus="store.recordHistory(block.id)" />
             </div>
             <button @click="store.removeItem(sectionId, blockId, item.id)" class="btn-icon btn-delete"
                 title="Remove Item">

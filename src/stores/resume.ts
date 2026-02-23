@@ -33,6 +33,8 @@ export interface ResumeData {
     }
     settings: {
         aiProvider: 'gemini' | 'zhipu'
+        geminiKey: string
+        zhipuKey: string
     }
 }
 
@@ -52,7 +54,9 @@ const DEFAULT_RESUME: ResumeData = {
         sectionSpacing: 25
     },
     settings: {
-        aiProvider: 'gemini'
+        aiProvider: 'gemini',
+        geminiKey: '',
+        zhipuKey: ''
     },
     sections: [
         {
@@ -177,6 +181,133 @@ export const useResumeStore = defineStore('resume', () => {
         sections
     })
 
+    // History Management
+    const historyStacks = ref<Record<string, { undo: string[], redo: string[] }>>({})
+    const MAX_HISTORY = 20
+
+    const findBlock = (blockId: string) => {
+        for (const section of resume.value.sections) {
+            const block = section.blocks.find(b => b.id === blockId)
+            if (block) return { block, section }
+        }
+        return null
+    }
+
+    const recordHistory = (id: 'header' | string) => {
+        if (!historyStacks.value[id]) {
+            historyStacks.value[id] = { undo: [], redo: [] }
+        }
+
+        let content = ''
+        if (id === 'header') {
+            content = JSON.stringify(resume.value.header)
+        } else {
+            const section = resume.value.sections.find(s => s.id === id)
+            if (section) {
+                content = JSON.stringify(section)
+            } else {
+                const blockData = findBlock(id)
+                if (blockData) {
+                    content = JSON.stringify(blockData.block)
+                }
+            }
+        }
+
+        if (!content) return
+
+        const stack = historyStacks.value[id]
+        if (stack.undo.length > 0 && stack.undo[stack.undo.length - 1] === content) return
+
+        stack.undo.push(content)
+        if (stack.undo.length > MAX_HISTORY) {
+            stack.undo.shift()
+        }
+        stack.redo = []
+    }
+
+    const undo = (id: 'header' | string) => {
+        const stack = historyStacks.value[id]
+        if (!stack || stack.undo.length === 0) return
+
+        let currentContent = ''
+        if (id === 'header') {
+            currentContent = JSON.stringify(resume.value.header)
+        } else {
+            const section = resume.value.sections.find(s => s.id === id)
+            if (section) {
+                currentContent = JSON.stringify(section)
+            } else {
+                const blockData = findBlock(id)
+                if (blockData) {
+                    currentContent = JSON.stringify(blockData.block)
+                }
+            }
+        }
+
+        stack.redo.push(currentContent)
+
+        const previousContent = JSON.parse(stack.undo.pop()!)
+        if (id === 'header') {
+            resume.value.header = previousContent
+        } else {
+            const sectionIdx = resume.value.sections.findIndex(s => s.id === id)
+            if (sectionIdx !== -1) {
+                resume.value.sections[sectionIdx] = previousContent
+            } else {
+                const blockData = findBlock(id)
+                if (blockData) {
+                    const bIdx = blockData.section.blocks.findIndex(b => b.id === id)
+                    if (bIdx !== -1) {
+                        blockData.section.blocks[bIdx] = previousContent
+                    }
+                }
+            }
+        }
+    }
+
+    const redo = (id: 'header' | string) => {
+        const stack = historyStacks.value[id]
+        if (!stack || stack.redo.length === 0) return
+
+        let currentContent = ''
+        if (id === 'header') {
+            currentContent = JSON.stringify(resume.value.header)
+        } else {
+            const section = resume.value.sections.find(s => s.id === id)
+            if (section) {
+                currentContent = JSON.stringify(section)
+            } else {
+                const blockData = findBlock(id)
+                if (blockData) {
+                    currentContent = JSON.stringify(blockData.block)
+                }
+            }
+        }
+
+        stack.undo.push(currentContent)
+
+        const nextContent = JSON.parse(stack.redo.pop()!)
+        if (id === 'header') {
+            resume.value.header = nextContent
+        } else {
+            const sectionIdx = resume.value.sections.findIndex(s => s.id === id)
+            if (sectionIdx !== -1) {
+                resume.value.sections[sectionIdx] = nextContent
+            } else {
+                const blockData = findBlock(id)
+                if (blockData) {
+                    const bIdx = blockData.section.blocks.findIndex(b => b.id === id)
+                    if (bIdx !== -1) {
+                        blockData.section.blocks[bIdx] = nextContent
+                    }
+                }
+            }
+        }
+    }
+
+    const canUndo = (id: 'header' | string) => !!historyStacks.value[id]?.undo.length
+    const canRedo = (id: 'header' | string) => !!historyStacks.value[id]?.redo.length
+
     watch(
         resume,
         (newData) => {
@@ -186,6 +317,7 @@ export const useResumeStore = defineStore('resume', () => {
     )
 
     const updateHeader = (data: Partial<ResumeData['header']>) => {
+        recordHistory('header')
         resume.value.header = { ...resume.value.header, ...data }
     }
 
@@ -199,6 +331,7 @@ export const useResumeStore = defineStore('resume', () => {
 
     const removeSection = (sectionId: string) => {
         resume.value.sections = resume.value.sections.filter(s => s.id !== sectionId)
+        delete historyStacks.value[sectionId]
     }
 
     const moveSection = (sectionId: string, direction: 'up' | 'down') => {
@@ -237,6 +370,7 @@ export const useResumeStore = defineStore('resume', () => {
     const addBlock = (sectionId: string, type: SectionType) => {
         const section = resume.value.sections.find(s => s.id === sectionId)
         if (!section) return
+        recordHistory(sectionId)
         section.blocks.push({
             id: Date.now().toString(),
             type,
@@ -247,12 +381,14 @@ export const useResumeStore = defineStore('resume', () => {
     const removeBlock = (sectionId: string, blockId: string) => {
         const section = resume.value.sections.find(s => s.id === sectionId)
         if (!section) return
+        recordHistory(sectionId)
         section.blocks = section.blocks.filter(b => b.id !== blockId)
     }
 
     const moveBlock = (sectionId: string, blockId: string, direction: 'up' | 'down') => {
         const section = resume.value.sections.find(s => s.id === sectionId)
         if (!section) return
+        recordHistory(sectionId)
         const idx = section.blocks.findIndex(b => b.id === blockId)
         if (idx === -1) return
         const targetIdx = direction === 'up' ? idx - 1 : idx + 1
@@ -268,6 +404,7 @@ export const useResumeStore = defineStore('resume', () => {
         const block = section.blocks.find(b => b.id === blockId)
         if (!block) return
 
+        recordHistory(sectionId)
         if (block.type === 'three-section') {
             block.content.push({
                 id: Date.now().toString(),
@@ -286,6 +423,7 @@ export const useResumeStore = defineStore('resume', () => {
         const block = section.blocks.find(b => b.id === blockId)
         if (!block) return
 
+        recordHistory(sectionId)
         if (block.type === 'three-section') {
             block.content = block.content.filter((item: any) => item.id !== indexOrId)
         } else if (Array.isArray(block.content)) {
@@ -305,7 +443,12 @@ export const useResumeStore = defineStore('resume', () => {
         removeBlock,
         moveBlock,
         addItem,
-        removeItem
+        removeItem,
+        undo,
+        redo,
+        recordHistory,
+        canUndo,
+        canRedo
     }
 })
 

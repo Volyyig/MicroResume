@@ -17,8 +17,8 @@ const block = computed(() => {
 
 <template>
     <div v-if="block" class="text-editor">
-        <textarea v-model="block.content" placeholder="Type your content here..."
-            class="input text-area"></textarea>
+        <textarea v-model="block.content" placeholder="Type your content here..." class="input text-area"
+            @focus="store.recordHistory(block.id)"></textarea>
     </div>
 </template>
 

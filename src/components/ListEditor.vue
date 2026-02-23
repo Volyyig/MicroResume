@@ -20,11 +20,12 @@ const block = computed(() => {
             <span class="item-prefix">
                 {{ block.type === 'list-ordered' ? (index as number) + 1 + '.' : '•' }}
             </span>
-            <textarea v-model="block.content[index]" class="item-input" rows="1" placeholder="List item..." @input="(e) => {
-                const el = e.target as HTMLTextAreaElement;
-                el.style.height = 'auto';
-                el.style.height = el.scrollHeight + 'px';
-            }"></textarea>
+            <textarea v-model="block.content[index]" class="item-input" rows="1" placeholder="List item..."
+                @focus="store.recordHistory(block.id)" @input="(e) => {
+                    const el = e.target as HTMLTextAreaElement;
+                    el.style.height = 'auto';
+                    el.style.height = el.scrollHeight + 'px';
+                }"></textarea>
             <button @click="store.removeItem(sectionId, blockId, index)" class="btn-icon btn-delete"
                 title="Remove Item">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
