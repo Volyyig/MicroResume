@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
-export type SectionType = 'professional' | 'text' | 'bullets' | 'tags'
+export type SectionType = 'three-section' | 'text' | 'list-unordered' | 'list-ordered'
 
 export interface Block {
     id: string
@@ -61,16 +61,20 @@ const DEFAULT_RESUME: ResumeData = {
             blocks: [
                 {
                     id: 'exp-block-1',
-                    type: 'professional',
+                    type: 'three-section',
                     content: [
                         {
                             id: 'exp1',
-                            company: 'Tech Corp',
-                            role: 'Senior Developer',
-                            period: '2021 - Present',
-                            description: 'Leading the frontend team to build high-performance applications.'
+                            left: 'Tech Corp',
+                            center: 'Senior Developer',
+                            right: '2021 - Present'
                         }
                     ]
+                },
+                {
+                    id: 'exp-block-2',
+                    type: 'list-unordered',
+                    content: ['Leading the frontend team to build high-performance applications.']
                 }
             ]
         },
@@ -80,14 +84,13 @@ const DEFAULT_RESUME: ResumeData = {
             blocks: [
                 {
                     id: 'edu-block-1',
-                    type: 'professional',
+                    type: 'three-section',
                     content: [
                         {
                             id: 'edu1',
-                            school: 'University of Engineering',
-                            degree: 'B.S. in Computer Science',
-                            period: '2017 - 2021',
-                            description: 'Specialized in Distributed Systems.'
+                            left: 'University of Engineering',
+                            center: 'B.S. in Computer Science',
+                            right: '2017 - 2021'
                         }
                     ]
                 }
@@ -99,8 +102,8 @@ const DEFAULT_RESUME: ResumeData = {
             blocks: [
                 {
                     id: 'skills-block-1',
-                    type: 'tags',
-                    content: ['Vue.js', 'TypeScript', 'Node.js', 'AI Integration']
+                    type: 'text',
+                    content: 'Vue.js, TypeScript, Node.js, AI Integration'
                 }
             ]
         }
@@ -114,22 +117,53 @@ export const useResumeStore = defineStore('resume', () => {
         : DEFAULT_RESUME
 
     // Migration logic
-    const sections = (initialData.sections || DEFAULT_RESUME.sections).map((s: any) => {
-        // If it's old format (has type/content instead of blocks)
-        if (s.type && s.content !== undefined && !s.blocks) {
-            let type = s.type
-            if (type === 'list') type = 'professional'
-            return {
-                id: s.id,
-                title: s.title,
-                blocks: [
-                    {
-                        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                        type: type as SectionType,
-                        content: s.content
-                    }
-                ]
+    const migrateBlock = (b: any): Block[] => {
+        if (b.type === 'professional') {
+            const threeSectionBlock: Block = {
+                id: b.id + '-3s',
+                type: 'three-section',
+                content: (b.content || []).map((item: any) => ({
+                    id: item.id || Date.now().toString() + Math.random(),
+                    left: item.company || item.school || '',
+                    center: item.role || item.degree || '',
+                    right: item.period || ''
+                }))
             }
+            const descBlocks: Block[] = (b.content || [])
+                .filter((item: any) => item.description)
+                .map((item: any) => ({
+                    id: item.id + '-desc',
+                    type: 'list-unordered',
+                    content: [item.description]
+                }))
+            return [threeSectionBlock, ...descBlocks]
+        }
+        if (b.type === 'bullets') {
+            return [{ ...b, type: 'list-unordered' }]
+        }
+        if (b.type === 'tags') {
+            return [{
+                id: b.id,
+                type: 'text',
+                content: Array.isArray(b.content) ? b.content.join(', ') : b.content
+            }]
+        }
+        return [b]
+    }
+
+    const sections = (initialData.sections || DEFAULT_RESUME.sections).map((s: any) => {
+        // Old format (single level)
+        if (s.type && s.content !== undefined && !s.blocks) {
+            const blocks = migrateBlock({ id: Date.now().toString(), type: s.type, content: s.content })
+            return { id: s.id, title: s.title, blocks }
+        }
+        // Intermediate format (blocks, but old types)
+        if (s.blocks) {
+            const newBlocks: Block[] = []
+            s.blocks.forEach((b: any) => {
+                newBlocks.push(...migrateBlock(b))
+            })
+            return { ...s, blocks: newBlocks }
         }
         return s
     })
@@ -194,10 +228,10 @@ export const useResumeStore = defineStore('resume', () => {
     }
 
     const BLOCK_TYPE_DEFAULTS: Record<SectionType, any> = {
-        professional: [],
-        bullets: [],
-        text: '',
-        tags: []
+        'three-section': [],
+        'text': '',
+        'list-unordered': [],
+        'list-ordered': []
     }
 
     const addBlock = (sectionId: string, type: SectionType) => {
@@ -206,7 +240,7 @@ export const useResumeStore = defineStore('resume', () => {
         section.blocks.push({
             id: Date.now().toString(),
             type,
-            content: Array.isArray(BLOCK_TYPE_DEFAULTS[type]) ? [...BLOCK_TYPE_DEFAULTS[type]] : BLOCK_TYPE_DEFAULTS[type]
+            content: Array.isArray(BLOCK_TYPE_DEFAULTS[type]) ? [] : BLOCK_TYPE_DEFAULTS[type]
         })
     }
 
@@ -234,16 +268,15 @@ export const useResumeStore = defineStore('resume', () => {
         const block = section.blocks.find(b => b.id === blockId)
         if (!block) return
 
-        if (block.type === 'professional') {
+        if (block.type === 'three-section') {
             block.content.push({
                 id: Date.now().toString(),
-                company: 'New Item',
-                role: 'Description',
-                period: 'Period',
-                description: 'Details go here...'
+                left: 'Left',
+                center: 'Center',
+                right: 'Right'
             })
-        } else if (block.type === 'tags' || block.type === 'bullets') {
-            block.content.push(block.type === 'tags' ? 'New Tag' : 'New point...')
+        } else if (block.type === 'list-unordered' || block.type === 'list-ordered') {
+            block.content.push('New item...')
         }
     }
 
@@ -253,7 +286,7 @@ export const useResumeStore = defineStore('resume', () => {
         const block = section.blocks.find(b => b.id === blockId)
         if (!block) return
 
-        if (block.type === 'professional') {
+        if (block.type === 'three-section') {
             block.content = block.content.filter((item: any) => item.id !== indexOrId)
         } else if (Array.isArray(block.content)) {
             block.content.splice(indexOrId as number, 1)

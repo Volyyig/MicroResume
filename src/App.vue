@@ -29,8 +29,10 @@ const handleAIImprove = async () => {
     let totalItems = 0
     store.resume.sections.forEach(s => {
       s.blocks.forEach(b => {
-        if (b.type === 'professional' || b.type === 'bullets') {
+        if (b.type === 'list-unordered' || b.type === 'list-ordered') {
           totalItems += b.content.length
+        } else if (b.type === 'text' && b.content.length > 20) {
+          totalItems += 1
         }
       })
     })
@@ -39,16 +41,7 @@ const handleAIImprove = async () => {
 
     for (const section of store.resume.sections) {
       for (const block of section.blocks) {
-        if (block.type === 'professional') {
-          for (const item of block.content) {
-            if (item.description && item.description.length > 5) {
-              currentItem++
-              polishingStatus.value = `Polishing ${section.title} (${currentItem}/${totalItems})...`
-              const improved = await improveResumeContent(item.description, store.resume.settings.aiProvider)
-              item.description = improved
-            }
-          }
-        } else if (block.type === 'bullets') {
+        if (block.type === 'list-unordered' || block.type === 'list-ordered') {
           for (let i = 0; i < block.content.length; i++) {
             if (block.content[i].length > 5) {
               currentItem++
@@ -56,6 +49,13 @@ const handleAIImprove = async () => {
               const improved = await improveResumeContent(block.content[i], store.resume.settings.aiProvider)
               block.content[i] = improved
             }
+          }
+        } else if (block.type === 'text') {
+          if (block.content.length > 20) {
+            currentItem++
+            polishingStatus.value = `Polishing ${section.title}...`
+            const improved = await improveResumeContent(block.content, store.resume.settings.aiProvider)
+            block.content = improved
           }
         }
       }

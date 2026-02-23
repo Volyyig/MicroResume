@@ -50,31 +50,25 @@ onUnmounted(() => {
                 <div class="section-divider"></div>
 
                 <div v-for="block in section.blocks" :key="block.id" class="resume-block">
-                    <!-- Professional -->
-                    <div v-if="block.type === 'professional'" class="experience-list">
-                        <div v-for="item in block.content" :key="item.id" class="resume-item">
-                            <div class="item-header">
-                                <strong>{{ item.company }}</strong>
-                                <span>{{ item.period }}</span>
-                            </div>
-                            <div class="item-sub"><em>{{ item.role }}</em></div>
-                            <p v-if="item.description" class="item-desc">{{ item.description }}</p>
+                    <!-- Three Section -->
+                    <div v-if="block.type === 'three-section'" class="three-section-list">
+                        <div v-for="item in block.content" :key="item.id" class="three-section-item">
+                            <span class="ts-left"><strong>{{ item.left }}</strong></span>
+                            <span class="ts-center"><em>{{ item.center }}</em></span>
+                            <span class="ts-right">{{ item.right }}</span>
                         </div>
                     </div>
 
-                    <!-- Bullets -->
-                    <ul v-else-if="block.type === 'bullets'" class="resume-bullets">
+                    <!-- Lists -->
+                    <ul v-else-if="block.type === 'list-unordered'" class="resume-bullets">
                         <li v-for="(point, idx) in block.content" :key="idx">{{ point }}</li>
                     </ul>
+                    <ol v-else-if="block.type === 'list-ordered'" class="resume-bullets ordered">
+                        <li v-for="(point, idx) in block.content" :key="idx">{{ point }}</li>
+                    </ol>
 
                     <!-- Text -->
                     <div v-else-if="block.type === 'text'" class="resume-text">{{ block.content }}</div>
-
-                    <!-- Tags -->
-                    <div v-else-if="block.type === 'tags'" class="skills-line">
-                        <span v-for="(tag, idx) in (block.content as string[])" :key="idx">{{ tag }}{{ idx <
-                            (block.content as string[]).length - 1 ? ', ' : '' }}</span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -155,38 +149,43 @@ onUnmounted(() => {
     margin: 4px 0 12px 0;
 }
 
-.resume-item {
-    margin-bottom: 12px;
-}
-
-.item-header {
+.three-section-item {
     display: flex;
     justify-content: space-between;
-    font-size: 1rem;
+    gap: 10px;
+    margin-bottom: 4px;
+    font-size: 0.95rem;
 }
 
-.item-sub {
-    color: #555;
-    font-size: 0.9rem;
+.ts-left {
+    flex: 1;
+    text-align: left;
 }
 
-.item-desc {
-    margin: 6px 0;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    color: #444;
+.ts-center {
+    flex: 1;
+    text-align: center;
+}
+
+.ts-right {
+    flex: 1;
+    text-align: right;
 }
 
 .resume-bullets {
     padding-left: 1.2rem;
-    margin: 8px 0;
+    margin: 4px 0;
 }
 
 .resume-bullets li {
     font-size: 0.85rem;
     line-height: 1.5;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
     color: #444;
+}
+
+.resume-bullets.ordered {
+    padding-left: 1.5rem;
 }
 
 .resume-text {
@@ -196,10 +195,6 @@ onUnmounted(() => {
     white-space: pre-wrap;
 }
 
-.skills-line {
-    font-size: 0.9rem;
-    color: #444;
-}
 .resume-block {
     margin-bottom: 8px;
 }

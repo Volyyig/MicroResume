@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { useResumeStore, type SectionType } from '../stores/resume'
 import { computed, ref } from 'vue'
-import ProfessionalEditor from './ProfessionalEditor.vue'
-import BulletsEditor from './BulletsEditor.vue'
+import ThreeSectionEditor from './ThreeSectionEditor.vue'
+import ListEditor from './ListEditor.vue'
 import TextEditor from './TextEditor.vue'
-import TagsEditor from './TagsEditor.vue'
 
 const store = useResumeStore()
 
@@ -17,10 +16,10 @@ const props = defineProps<{
 const section = computed(() => store.resume.sections.find(s => s.id === props.sectionId)!)
 
 const TYPE_LABELS: Record<SectionType, string> = {
-    professional: 'Professional',
-    bullets: 'Bullet Points',
-    text: 'Plain Text',
-    tags: 'Skills / Tags'
+    'three-section': 'Three-section Line',
+    'text': 'Plain Text',
+    'list-unordered': 'Unordered List',
+    'list-ordered': 'Ordered List'
 }
 
 const showAddMenu = ref(false)
@@ -133,10 +132,11 @@ const addBlock = (type: SectionType) => {
                         </button>
                     </div>
                 </div>
-                <ProfessionalEditor v-if="block.type === 'professional'" :section-id="sectionId" :block-id="block.id" />
-                <BulletsEditor v-else-if="block.type === 'bullets'" :section-id="sectionId" :block-id="block.id" />
+                <ThreeSectionEditor v-if="block.type === 'three-section'" :section-id="sectionId"
+                    :block-id="block.id" />
                 <TextEditor v-else-if="block.type === 'text'" :section-id="sectionId" :block-id="block.id" />
-                <TagsEditor v-else-if="block.type === 'tags'" :section-id="sectionId" :block-id="block.id" />
+                <ListEditor v-else-if="block.type === 'list-unordered' || block.type === 'list-ordered'"
+                    :section-id="sectionId" :block-id="block.id" />
             </div>
             <div v-if="section.blocks.length === 0" class="empty-section">
                 No content blocks yet. Click the + button to add one.
